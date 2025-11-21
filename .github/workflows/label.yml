@@ -1,0 +1,105 @@
+name: Label Comment Automation
+
+on:
+  issues:
+    types: [labeled, unlabeled]
+  pull_request:
+    types: [labeled, unlabeled]
+
+jobs:
+  label-comment-sync:
+    if: |
+      github.event.label.name == 'package-request-needed' ||
+      github.event.label.name == 'not-meet-criteria'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prepare label description
+        id: get_label_info
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue_url = 'https://github.com/ScoopInstaller/Extras/issues/new?assignees=&labels=package-request&projects=&template=package-request.yml&title=%5BRequest%5D%3A+';
+            const label_descriptions = {
+              "package-request-needed": [
+                `Please create a [package request](${issue_url}) before raising a PR to add a new package to this bucket.`,
+                "",
+                "When creating a package request, you can check the **criteria** for a package to be accepted in this bucket, which can help you determine whether your PR is likely to be approved.",
+                "",
+                "The information provided in the issue can also help our collaborators/maintainers quickly get the necessary details."
+              ].join('\n'),
+              "not-meet-criteria": [
+                "Thanks for your contribution!",
+                "",
+                "Unfortunately, it appears that your package request doesn't fully meet the essential criteria.",
+                "",
+                "> ### For a package to be acceptable in this bucket, it should be:",
+                "> 1. **Reasonably well-known and widely used. e.g. if it's a GitHub project, it should have at least 100 stars and/or 50 forks** *",
+                "> 2. **English interface (or at least English documentation)** *",
+                "> 3. **Latest stable version** *",
+                "> 4. Full version (i.e. not a trial version)",
+                "> 5. Fairly standard install (e.g. uses a version-specific download URL, no elaborate pre/post install scripts)",
+                "",
+                "Please feel free to reopen this PR once it fully meets the criteria, or consider creating [your own bucket](https://github.com/ScoopInstaller/Scoop/wiki/Buckets#creating-your-own-bucket) instead."
+              ].join('\n')
+            };
+
+            const label = context.payload.label.name;
+            const label_header = `<!-- Label ${label} -->`;
+            const label_description = label_descriptions[label];
+
+            if (!label_description) {
+              throw new Error("Label description not found.");
+            }
+
+            console.log(`label:${label}\nlabel_header:${label_header}\nlabel_description:${label_description}`);
+
+            core.setOutput('label_header', label_header)
+            core.setOutput('label_description', label_description)
+
+      - name: Retrieve existing label descriptions
+        id: get_existing_comment
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number
+            });
+
+            const existing_comment = comments.find(
+              comment => comment.user.type === "Bot" &&
+              comment.body.startsWith('${{ steps.get_label_info.outputs.label_header }}')
+            );
+
+            console.log(`existing_comment: ${existing_comment}`);
+
+            core.setOutput('comment_id', existing_comment?.id)
+
+      - name: Handle label added
+        if: ${{ github.event.action == 'labeled' && !steps.get_existing_comment.outputs.comment_id }}
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: ['${{ steps.get_label_info.outputs.label_header }}', `${{ steps.get_label_info.outputs.label_description }}`].join('\n')
+              });
+            console.log("Label description posted successfully.");
+
+      - name: Handle label removed
+        if: ${{ github.event.action == 'unlabeled' && steps.get_existing_comment.outputs.comment_id }}
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            await github.rest.issues.deleteComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: '${{ steps.get_existing_comment.outputs.comment_id }}'
+            });
+            console.log("Label description deleted successfully.");
