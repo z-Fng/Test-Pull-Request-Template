@@ -4,6 +4,26 @@ on:
   pull_request:
     types: [labeled, unlabeled]
 
+env:
+  MESSAGES: |
+    package-request-needed: |
+      PRs labeled `package-request-needed` are less likely to be reviewed and may be closed if there are no updates for a long time.
+
+      Please create a [package request](https://github.com/ScoopInstaller/Extras/issues/new?assignees=&labels=package-request&projects=&template=package-request.yml&title=%5BRequest%5D%3A+) before submitting a PR to add a new package to this bucket. When creating a package request, you can check the **criteria** for a package to be accepted in this bucket, which can help you determine whether your PR is likely to be approved. The information provided in the issue can also help maintainers quickly get the necessary details.
+
+      > ### For a package to be acceptable in this bucket, it should be:
+      > 1. **Reasonably well-known and widely used. e.g. if it's a GitHub project, it should have at least 100 stars and/or 50 forks** *
+      > 2. **English interface (or at least English documentation)** *
+      > 3. **Latest stable version** *
+      > 4. Full version (i.e. not a trial version)
+      > 5. Fairly standard install (e.g. uses a version-specific download URL, no elaborate pre/post install scripts)
+
+    not-meet-criteria: |
+      Thanks for your contribution to Scoop Extras bucket!
+
+      Unfortunately, it appears that your package request doesn't fully meet the essential criteria.
+      Please feel free to reopen this PR once it fully meets the criteria, or consider creating [your own bucket](https://github.com/ScoopInstaller/Scoop/wiki/Buckets#creating-your-own-bucket) instead.
+
 jobs:
   notify:
     if: github.event.pull_request.state == 'open'
@@ -20,25 +40,10 @@ jobs:
 
             console.log(label);
 
-            const messages = {
-              "package-request-needed": `
-              PRs labeled \`package-request-needed\` are less likely to be reviewed and may be closed if there are no updates for a long time.\n
-              Please create a [package request](https://github.com/ScoopInstaller/Extras/issues/new?assignees=&labels=package-request&projects=&template=package-request.yml&title=%5BRequest%5D%3A+) before submitting a PR to add a new package to this bucket. When creating a package request, you can check the **criteria** for a package to be accepted in this bucket, which can help you determine whether your PR is likely to be approved. The information provided in the issue can also help maintainers quickly get the necessary details.\n
-              > ### For a package to be acceptable in this bucket, it should be:
-              > 1. **Reasonably well-known and widely used. e.g. if it's a GitHub project, it should have at least 100 stars and/or 50 forks** *
-              > 2. **English interface (or at least English documentation)** *
-              > 3. **Latest stable version** *
-              > 4. Full version (i.e. not a trial version)
-              > 5. Fairly standard install (e.g. uses a version-specific download URL, no elaborate pre/post install scripts)
-              `,
-              "not-meet-criteria": `
-              Thanks for your contribution to Scoop Extras bucket!\n
-              Unfortunately, it appears that your package request doesn't fully meet the essential criteria.
-              Please feel free to reopen this PR once it fully meets the criteria, or consider creating [your own bucket](https://github.com/ScoopInstaller/Scoop/wiki/Buckets#creating-your-own-bucket) instead.
-              `
-            };
-            const msg = messages[label];
+            const yaml = require('js-yaml');
+            const messages = yaml.load(process.env.MESSAGES);
 
+            const msg = messages[label];
 
             if (!msg) {
               console.log("Label msg not found.");
@@ -80,7 +85,6 @@ jobs:
               return;
             }
 
-            // --- 删除 label 时：删除对应评论 ---
             if (context.payload.action === "unlabeled") {
               if (!existing) {
                 console.log("Label msg doesn't exist.");
