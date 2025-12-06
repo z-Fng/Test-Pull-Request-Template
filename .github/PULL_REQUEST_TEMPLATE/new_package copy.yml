@@ -1,0 +1,40 @@
+name: 📦 Package Request
+description: Open an issue about a missing package.
+title: ""
+body:
+- type: checkboxes
+  attributes:
+    label: Prerequisites
+    options:
+    - label: 'I have used a conventional PR title: `package-name: Add version <version>`.'
+      required: true
+    - label: I have created create a [package request](https://github.com/ScoopInstaller/Extras/issues/new?assignees=&labels=package-request&projects=&template=package-request.yml&title=%5BRequest%5D%3A+) and confirmed the new package meets the **acceptance criteria**..
+      required: true
+    - label: I have read the [Contributing Guide](https://github.com/ScoopInstaller/.github/blob/main/.github/CONTRIBUTING.md).
+      required: true
+- type: input
+  attributes:
+    label: Name
+    description: Name of the package
+  validations:
+    required: true
+- type: input
+  attributes:
+    label: Version
+    description: Latest version of the package
+  validations:
+    required: true
+- type: repeatable
+  id: Related Issues
+  attributes:
+    label: 'Related Issues'
+    description: ''
+    required: true
+  body:
+    - type: input
+      id: issue
+      attributes:
+        label: 'Issue Number or Link'
+        placeholder: 'Closes #XXXX / Relates to #XXXX'
+        required: true
+        hide-if-empty: true
