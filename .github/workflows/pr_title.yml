@@ -1,0 +1,71 @@
+name: PR Title Check
+
+on:
+  pull_request:
+    types: [opened, edited, reopened]
+
+jobs:
+  check-title:
+    if: github.event.action != 'edited' || github.event.changes.title
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check PR title with GitHub Script
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const pr = context.payload.pull_request;
+            const title = pr.title;
+
+            const regex = /^((?!chore)[\w.-]+(@.+)?|\(chore\)):\s*(?<content>.+)$/;
+
+            const labelInvalidTitle = 'non-conventional-title';
+
+            const typeLabel = (m) => `type: ${m}`;
+
+            const labels = await github.rest.issues.listLabelsOnIssue({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number
+            });
+
+            const hasLabel = (name) =>
+              labels.data.some(l => l.name.toLowerCase() === name.toLowerCase());
+
+            if (!regex.test(title)) {
+              if (!hasLabel(labelInvalidTitle)) {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  labels: [labelInvalidTitle]
+                });
+              }
+              return;
+            }
+
+            if (hasLabel(labelInvalidTitle)) {
+              await github.rest.issues.removeLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                name: labelInvalidTitle
+              }).catch(() => {});
+            }
+
+            const match = title.match(regex);
+            const isChore = match[1] === 'chore';
+            const content = match.groups.content;
+
+            const regexNewPackage = /^Add version.*$/;
+            const labelNewPackage = 'new-package';
+
+            if (!isChore && regexNewPackage.test(content) && !hasLabel(labelNewPackage)) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                labels: [labelNewPackage]
+              });
+            }

@@ -9,6 +9,7 @@ on:
 jobs:
   label-comment-sync:
     if: |
+      github.event.label.name == 'non-conventional-title' ||
       github.event.label.name == 'package-request-needed' ||
       github.event.label.name == 'not-meet-criteria'
     runs-on: ubuntu-latest
@@ -20,6 +21,22 @@ jobs:
           script: |
             const issue_url = 'https://github.com/ScoopInstaller/Extras/issues/new?assignees=&labels=package-request&projects=&template=package-request.yml&title=%5BRequest%5D%3A+';
             const label_descriptions = {
+              "non-conventional-title": [
+                "Please make sure you're using a conventional PR title: \\\`<manifest-name[@version]|chore>: <general summary of the PR>\\\`.",
+                "",
+                "Here are some examples:",
+                "- **New Package**: \\\`<manifest-name>: Add version <latest version>\\\`.",
+                "  e.g.",
+                "  - \\\`app: Add version 1.0.0\\\`",
+                "- **Existing Package**: \\\`<manifest-name[@version]>: <general summary of the PR>\\\`.",
+                "  e.g.",
+                "  - Fix for an existing version: \\\`app@1.0.0: Fix extraction\\\`",
+                "  - Fix with a version bump: \\\`app: Update to version 1.0.1, fix checkver\\\`",
+                "- **Chore**: \\\`(chore): <general summary of the PR>\\\`.",
+                "  e.g.",
+                "  - \\\`(chore): Run linter on all manifests\\\`",
+                "  - \\\`(chore): Bump actions/checkout from 5 to 6 \\\`"
+              ].join('\n'),
               "package-request-needed": [
                 `Please create a [package request](${issue_url}) before raising a PR to add a new package to this bucket.`,
                 "",
